@@ -25,6 +25,11 @@ class TicketResource extends JsonResource
                 'id' => $this->assignee->id,
                 'name' => $this->assignee->name,
             ] : null),
+            'note_count' => $this->whenCounted('notes'),
+            'notes' => $this->when(
+                $this->relationLoaded('notes'),
+                fn () => TicketNoteResource::collection($this->notes)
+            ),
             'due_at' => $this->due_at?->toIso8601String(),
             'resolved_at' => $this->resolved_at?->toIso8601String(),
             'sla_breached' => $sla->isBreached($this->due_at, $this->resolved_at),

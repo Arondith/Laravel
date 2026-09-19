@@ -18,10 +18,22 @@ class TicketController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
+        $search = trim((string) $request->query('search', ''));
+
         $tickets = Ticket::query()
             ->with('assignee')
+            ->withCount('notes')
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('priority'), fn ($query) => $query->where('priority', $request->string('priority')))
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($nested) use ($search) {
+                    $nested
+                        ->where('reference', 'like', "%{$search}%")
+                        ->orWhere('subject', 'like', "%{$search}%")
+                        ->orWhere('requester_name', 'like', "%{$search}%")
+                        ->orWhere('requester_email', 'like', "%{$search}%");
+                });
+            })
             ->latest()
             ->paginate(20)
             ->withQueryString();
@@ -41,12 +53,17 @@ class TicketController extends Controller
             'due_at' => $sla->dueAt($priority),
         ]);
 
-        return new TicketResource($ticket->load('assignee'));
+        return new TicketResource($ticket->load('assignee')->loadCount('notes'));
     }
 
     public function show(Ticket $ticket): TicketResource
     {
-        return new TicketResource($ticket->load('assignee'));
+        $ticket->load([
+            'assignee',
+            'notes' => fn ($query) => $query->latest(),
+        ])->loadCount('notes');
+
+        return new TicketResource($ticket);
     }
 
     public function update(UpdateTicketRequest $request, Ticket $ticket, TicketSlaService $sla): TicketResource
@@ -69,6 +86,8 @@ class TicketController extends Controller
 
         $ticket->update($data);
 
-        return new TicketResource($ticket->fresh()->load('assignee'));
+        $ticket = $ticket->fresh()->load('assignee')->loadCount('notes');
+
+        return new TicketResource($ticket);
     }
 }

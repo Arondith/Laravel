@@ -1,12 +1,12 @@
 # PulseDesk
 
-**PulseDesk** is a full-stack helpdesk and SLA management platform built as a software-engineering portfolio project. It demonstrates a production-style Laravel architecture instead of a basic CRUD tutorial: REST endpoints, request validation, API resources, PHP enums, a service layer, relational data, SLA calculations, automated tests, a Vue 3 + TypeScript interface, Docker services, and GitHub Actions CI.
+**PulseDesk** is a full-stack helpdesk and SLA management platform built as a software-engineering portfolio project. It demonstrates a production-style Laravel architecture instead of a basic CRUD tutorial: REST endpoints, request validation, API resources, PHP enums, a service layer, relational data, internal support notes, server-side search, SLA calculations, automated tests, a Vue 3 + TypeScript interface, Docker services, and GitHub Actions CI.
 
 ## Why this project exists
 
-Support systems are a useful engineering problem because they combine business rules with real operational workflows. PulseDesk tracks incoming requests, prioritizes incidents, calculates response deadlines, highlights SLA breaches, and exposes dashboard metrics through a clean API.
+Support systems are a useful engineering problem because they combine business rules with real operational workflows. PulseDesk tracks incoming requests, prioritizes incidents, calculates response deadlines, highlights SLA breaches, stores troubleshooting notes, and exposes operational metrics through a clean API.
 
-This repository is designed to demonstrate skills relevant to **Laravel/PHP development, full-stack development, backend engineering, web development, and technical-support tooling**.
+This repository is designed to demonstrate skills relevant to **Laravel/PHP development, full-stack development, backend engineering, web development, technical-support tooling, and software QA**.
 
 ## Tech stack
 
@@ -15,7 +15,7 @@ This repository is designed to demonstrate skills relevant to **Laravel/PHP deve
 - **Database:** SQLite for zero-config local development; MySQL 8.4 in Docker
 - **Infrastructure:** Docker Compose, Redis-ready cache/queue configuration
 - **Quality:** PHPUnit feature tests, Laravel Pint, GitHub Actions CI
-- **Architecture:** REST API, Form Requests, API Resources, Eloquent, enums, service layer
+- **Architecture:** REST API, Form Requests, API Resources, Eloquent relationships, enums, service layer
 
 ## Features
 
@@ -24,10 +24,12 @@ This repository is designed to demonstrate skills relevant to **Laravel/PHP deve
 - SLA deadlines calculated from ticket priority
 - Ticket lifecycle: open → in progress → resolved → closed
 - SLA breach detection
+- Server-side ticket search by reference, subject, requester name, or email
+- Internal troubleshooting notes / ticket activity context
+- Operational dashboard metrics including unassigned workload and average resolution time
 - Filterable support queue
-- Operational dashboard metrics
 - Seeded demo data
-- Responsive Vue dashboard
+- Responsive Vue dashboard and ticket workspace
 - SQLite and MySQL configurations
 - Redis-ready caching / queue setup
 - Feature tests for API behavior
@@ -41,18 +43,20 @@ Vue 3 + TypeScript
         ▼
 Laravel REST API
         │
- ┌──────┼─────────┐
- ▼      ▼         ▼
-Requests Resources Services
-        │         │
-        └────┬────┘
-             ▼
-         Eloquent ORM
-             │
-        SQLite / MySQL
+ ┌──────┼──────────┬──────────┐
+ ▼      ▼          ▼          ▼
+Requests Resources Services  Controllers
+        │          │          │
+        └──────────┼──────────┘
+                   ▼
+             Eloquent ORM
+              │        │
+           Tickets   Ticket Notes
+              │
+         SQLite / MySQL
 ```
 
-The SLA rule is intentionally separated into `TicketSlaService` so business logic is reusable and independently testable. HTTP validation lives in Form Requests, API representation lives in `TicketResource`, and enum-backed status/priority values reduce invalid state.
+The SLA rule is separated into `TicketSlaService` so business logic is reusable and independently testable. HTTP validation lives in Form Requests, API representation lives in Resources, enum-backed status/priority values reduce invalid state, and the `Ticket` → `TicketNote` relationship demonstrates a real one-to-many workflow.
 
 ## Quick start
 
@@ -92,8 +96,6 @@ docker compose up --build
 docker compose exec app php artisan migrate --seed
 ```
 
-The Vue assets should be built locally before using the lightweight application container, or the Dockerfile can be extended into a multi-stage frontend build for deployment.
-
 ## API
 
 | Method | Endpoint | Purpose |
@@ -101,11 +103,13 @@ The Vue assets should be built locally before using the lightweight application 
 | GET | `/api/health` | API health check |
 | GET | `/api/dashboard` | Support/SLA metrics |
 | GET | `/api/tickets` | Paginated ticket queue |
+| GET | `/api/tickets?search=vpn` | Search the support queue |
 | POST | `/api/tickets` | Create a ticket |
-| GET | `/api/tickets/{ticket}` | View one ticket |
+| GET | `/api/tickets/{ticket}` | View a ticket with internal notes |
 | PATCH | `/api/tickets/{ticket}` | Update status, priority, or assignment |
+| POST | `/api/tickets/{ticket}/notes` | Add an internal troubleshooting note |
 
-Example request:
+Example ticket request:
 
 ```json
 {
@@ -114,6 +118,15 @@ Example request:
   "subject": "Production login issue",
   "description": "Users receive an error after submitting valid credentials.",
   "priority": "critical"
+}
+```
+
+Example internal note:
+
+```json
+{
+  "author_name": "Support Agent",
+  "body": "Reproduced the issue and isolated the failure to the authentication API."
 }
 ```
 
@@ -136,24 +149,26 @@ vendor/bin/pint --test
 npm run build
 ```
 
-The included feature tests verify ticket creation, status filtering, SLA deadline assignment, and dashboard metrics.
+The feature tests cover ticket creation, status filtering, search behavior, SLA assignment, dashboard metrics, and internal note persistence.
 
 ## Portfolio talking points
 
-This project is useful in interviews because it gives you concrete examples for explaining:
+Use this project in interviews to explain:
 
 - why business logic belongs outside controllers;
 - how Laravel Form Requests and API Resources keep HTTP code clean;
 - how enum-backed states prevent inconsistent string values;
-- how to model ticket priority and SLA behavior;
-- how Vue consumes a Laravel REST API;
-- how SQLite can optimize onboarding while MySQL represents production infrastructure;
+- how one-to-many Eloquent relationships model real support workflows;
+- how server-side search differs from client-only filtering;
+- how Vue and TypeScript consume and type a Laravel REST API;
+- how feature tests protect API behavior;
+- how SQLite simplifies onboarding while MySQL represents production infrastructure;
 - how CI catches backend, frontend, and formatting failures before merge;
-- how Docker separates the app, database, and cache services.
+- how Docker separates application, database, and cache services.
 
 ## Roadmap
 
-Future improvements can include authentication and roles, comments/activity history, file attachments, email notifications through queues, audit logs, WebSocket updates, API rate limiting, OpenAPI documentation, and deployment to Laravel Cloud or a VPS.
+Future improvements can include authentication and roles, file attachments, email notifications through queues, audit events, WebSocket updates, API rate limiting, OpenAPI documentation, and production deployment.
 
 ## License
 
