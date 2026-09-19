@@ -63,7 +63,7 @@ class TicketController extends Controller
             $data['due_at'] = $this->sla->dueAt($priority);
         }
 
-        if (($data['status'] ?? null) === TicketStatus::Resolved->value && !$ticket->resolved_at) {
+        if (($data['status'] ?? null) === TicketStatus::Resolved->value && ! $ticket->resolved_at) {
             $data['resolved_at'] = now();
         }
 
