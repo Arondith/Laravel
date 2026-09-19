@@ -16,10 +16,6 @@ use Illuminate\Support\Str;
 
 class TicketController extends Controller
 {
-    public function __construct(private readonly TicketSlaService $sla)
-    {
-    }
-
     public function index(Request $request): AnonymousResourceCollection
     {
         $tickets = Ticket::query()
@@ -33,7 +29,7 @@ class TicketController extends Controller
         return TicketResource::collection($tickets);
     }
 
-    public function store(StoreTicketRequest $request): TicketResource
+    public function store(StoreTicketRequest $request, TicketSlaService $sla): TicketResource
     {
         $priority = TicketPriority::from($request->validated('priority'));
 
@@ -42,7 +38,7 @@ class TicketController extends Controller
             'priority' => $priority,
             'status' => TicketStatus::Open,
             'reference' => 'PD-'.strtoupper(Str::random(8)),
-            'due_at' => $this->sla->dueAt($priority),
+            'due_at' => $sla->dueAt($priority),
         ]);
 
         return new TicketResource($ticket->load('assignee'));
@@ -53,14 +49,14 @@ class TicketController extends Controller
         return new TicketResource($ticket->load('assignee'));
     }
 
-    public function update(UpdateTicketRequest $request, Ticket $ticket): TicketResource
+    public function update(UpdateTicketRequest $request, Ticket $ticket, TicketSlaService $sla): TicketResource
     {
         $data = $request->validated();
 
         if (isset($data['priority']) && $data['priority'] !== $ticket->priority->value) {
             $priority = TicketPriority::from($data['priority']);
             $data['priority'] = $priority;
-            $data['due_at'] = $this->sla->dueAt($priority);
+            $data['due_at'] = $sla->dueAt($priority);
         }
 
         if (($data['status'] ?? null) === TicketStatus::Resolved->value && $ticket->resolved_at === null) {
